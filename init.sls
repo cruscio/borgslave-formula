@@ -73,6 +73,7 @@ borgpkgs:
             - python-virtualenv
             - gdal-bin
             - python-dev
+            - python3-dev
 
 
 # Setup PostgreSQL + PostGIS
@@ -123,20 +124,51 @@ postgresql:
         - template: jinja
 
 
+# set up pg_scofflaw, PostgreSQL client auth proxy
+/opt/pg_scofflaw:
+    git.latest:
+        - name: "https://github.com/parksandwildlife/pg_scofflaw.git"
+        - target: "/opt/pg_scofflaw"
+        - watch_in:
+            - supervisord: pg_scofflaw
+
+/opt/pg_scofflaw/venv:
+    virtualenv.managed:
+        - python: /usr/bin/python3
+        - requirements: /opt/pg_scofflaw/requirements.txt
+        - require:
+            - git: /opt/pg_scofflaw
+
+/opt/pg_scofflaw/cert.pem:
+    cmd.run:
+        - name: 'openssl req -new -x509 -nodes -out /opt/pg_scofflaw/cert.pem -keyout /opt/pg_scofflaw/cert.pem -subj "/C=AU/ST=Western Australia/L=Perth/O=Department of Parks and Wildlife/CN=pg_scofflaw SSL cert"'
+        - unless: "test -f /opt/pg_scofflaw/cert.pem"
+
+pg_scofflaw.conf:
+    file.managed:
+        - name: /etc/{% if grains["os_family"] == "Debian" %}supervisor/conf.d/pg_scofflaw.conf{% elif grains["os_family"] == "Arch" %}supervisor.d/pg_scofflaw.ini{% endif %}
+        - source: salt://borgslave-formula/files/pg_scofflaw.conf
+        - watch_in:
+            - supervisord: pg_scofflaw
+
+pg_scofflaw:
+    supervisord:
+        - running
+
 # set up dpaw-borg-state repository
 /opt/dpaw-borg-state:
     cmd.run:
-       - name: "hg clone {{ pillar['borg_client']['state_repo'] }} /opt/dpaw-borg-state -e 'ssh -o StrictHostKeyChecking=no -i /etc/id_rsa_borg'"
-       - unless: "test -d /opt/dpaw-borg-state && test -d /opt/dpaw-borg-state/.hg" 
-       - require:
+        - name: "hg clone {{ pillar['borg_client']['state_repo'] }} /opt/dpaw-borg-state -e 'ssh -o StrictHostKeyChecking=no -i /etc/id_rsa_borg'"
+        - unless: "test -d /opt/dpaw-borg-state && test -d /opt/dpaw-borg-state/.hg" 
+        - require:
             - file: /etc/id_rsa_borg
 
 # set up borgslave-sync repository (i.e. sync client code)
 /opt/dpaw-borg-state/code:
     cmd.run:
-       - name: "git clone {{ pillar['borg_client']['code_repo'] }} /opt/dpaw-borg-state/code"
-       - unless: "test -d /opt/dpaw-borg-state/code && test -d /opt/dpaw-borg-state/code/.git" 
-       - require:
+        - name: "git clone {{ pillar['borg_client']['code_repo'] }} /opt/dpaw-borg-state/code"
+        - unless: "test -d /opt/dpaw-borg-state/code && test -d /opt/dpaw-borg-state/code/.git" 
+        - require:
             - cmd: /opt/dpaw-borg-state
 
 /opt/dpaw-borg-state/code/.env:
@@ -275,6 +307,7 @@ slave_poll.conf:
             - archive: geoserverpkgs
             - file: geoserver.conf
             - file: slave_poll.conf
+            - file: pg_scofflaw.conf
 
 # last bit of GeoServer jetty wiring
 /opt/geoserver:
@@ -356,16 +389,16 @@ slave_poll.conf:
 # Last-minute GeoServer clobbering
 geoserver_patch_clone:
     cmd.run:
-       - name: "git clone https://github.com/parksandwildlife/geoserver-patch.git /opt/geoserver-patch"
-       - unless: "test -d /opt/geoserver-patch && test -d /opt/geoserver-patch/.git" 
-       - require:
+        - name: "git clone https://github.com/parksandwildlife/geoserver-patch.git /opt/geoserver-patch"
+        - unless: "test -d /opt/geoserver-patch && test -d /opt/geoserver-patch/.git" 
+        - require:
             - file: /etc/id_rsa_borg
 
 geoserver_patch_sync:
     cmd.run:
-       - name: "git pull"
-       - cwd: /opt/geoserver-patch
-       - require:
+        - name: "git pull"
+        - cwd: /opt/geoserver-patch
+        - require:
             - cmd: geoserver_patch_clone
 
 geoserver_patch_install:
