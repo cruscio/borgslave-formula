@@ -1,0 +1,12 @@
+<gwcQuotaConfiguration>
+  <enabled>true</enabled>
+  <diskBlockSize>4096</diskBlockSize>
+  <cacheCleanUpFrequency>100</cacheCleanUpFrequency>
+  <cacheCleanUpUnits>SECONDS</cacheCleanUpUnits>
+  <maxConcurrentCleanUps>2</maxConcurrentCleanUps>
+  <globalExpirationPolicyName>LFU</globalExpirationPolicyName>
+  <globalQuota>
+    <value>50</value>
+    <units>GiB</units>
+  </globalQuota>
+</gwcQuotaConfiguration>

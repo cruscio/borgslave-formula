@@ -1,0 +1,15 @@
+<jdbcroleservice>
+  <id>-2ffe2efc:14b539281ce:-7fff</id>
+  <name>dpaw_roles</name>
+  <className>org.geoserver.security.jdbc.JDBCRoleService</className>
+  <propertyFileNameDDL>rolesddl.xml</propertyFileNameDDL>
+  <propertyFileNameDML>rolesdml.xml</propertyFileNameDML>
+  <jndi>false</jndi>
+  <driverClassName>org.postgresql.Driver</driverClassName>
+  <connectURL>jdbc:postgresql://localhost:5433/{{ pillar["borg_client"]["pgsql_database"] }}</connectURL>
+  <userName>{{ pillar["borg_client"]["pgsql_username"] }}</userName>
+  <password>plain:{{ pillar["borg_client"]["pgsql_password"] }}</password>
+  <creatingTables>false</creatingTables>
+  <adminRoleName>ADMIN</adminRoleName>
+  <groupAdminRoleName>GROUP_ADMIN</groupAdminRoleName>
+</jdbcroleservice>

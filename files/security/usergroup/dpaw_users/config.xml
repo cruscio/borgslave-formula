@@ -1,0 +1,15 @@
+<jdbcusergroupservice>
+  <id>-2ffe2efc:14b539281ce:-8000</id>
+  <name>dpaw_users</name>
+  <className>org.geoserver.security.jdbc.JDBCUserGroupService</className>
+  <propertyFileNameDDL>usersddl.xml</propertyFileNameDDL>
+  <propertyFileNameDML>usersdml.xml</propertyFileNameDML>
+  <jndi>false</jndi>
+  <driverClassName>org.postgresql.Driver</driverClassName>
+  <connectURL>jdbc:postgresql://localhost:5433/{{ pillar["borg_client"]["pgsql_database"] }}</connectURL>
+  <userName>{{ pillar["borg_client"]["pgsql_username"] }}</userName>
+  <password>plain:{{ pillar["borg_client"]["pgsql_password"] }}</password>
+  <creatingTables>false</creatingTables>
+  <passwordEncoderName>emptyPasswordEncoder</passwordEncoderName>
+  <passwordPolicyName>default</passwordPolicyName>
+</jdbcusergroupservice>

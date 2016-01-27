@@ -1,0 +1,29 @@
+borg_client:
+    pgsql_database: "[name for slave DB goes here]"
+    pgsql_username: "[admin username for slave DB goes here]"
+    pgsql_password: "[admin password for slave DB goes here]"
+    geoserver_username: "admin"
+    geoserver_password: "[geoserver admin password goes here]"
+    default_crs: "EPSG:4326"
+    state_repo: "[ssh URL for state hg repo goes here]"
+    code_repo: "https://github.com/parksandwildlife/borgslave-sync.git"
+
+borg_master:
+    pgsql_host: "[borgcollector DB server goes here]"
+    pgsql_port: "5432"
+    pgsql_database: "[borgcollector DB name goes here]"
+    pgsql_schema: "public"
+    pgsql_username: "[username goes here]"
+    pgsql_password: "[password goes here]"
+
+borgslave_sync:
+    branch: "master"
+
+borg_public_key:
+    ssh-rsa [state repo SSH public key goes here] borg@salt
+
+borg_private_key:
+    |
+    -----BEGIN RSA PRIVATE KEY-----
+    [state repo SSH private key goes here]
+    -----END RSA PRIVATE KEY-----

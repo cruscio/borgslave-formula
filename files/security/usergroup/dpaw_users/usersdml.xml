@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+<properties>
+  <comment>DML statements for user database</comment>
+
+  <entry key="users.count">
+	select count(*) from gs_auth.users 
+  </entry>
+
+  <entry key="users.all">
+	select name,password,enabled from gs_auth.users 
+  </entry>
+  <entry key="users.keyed">
+	select password,enabled from gs_auth.users where name = ?
+  </entry>
+  <entry key="users.insert">
+	insert into  gs_auth.users(name ,password,enabled) values (?,?,?)
+  </entry>
+  <entry key="users.update">
+	update gs_auth.users set password = ?, enabled = ? where name = ?
+  </entry>
+  <entry key="users.delete">
+	delete from  gs_auth.users where name = ?
+  </entry>
+  
+  <entry key="users.deleteAll">
+	delete from  gs_auth.users 
+  </entry>
+  
+
+  <entry key="userprops.all">
+	select username,propname,propvalue from  gs_auth.user_props 
+  </entry>
+  <entry key="userprops.selectForUser">
+	select propname,propvalue from  gs_auth.user_props where username = ?
+  </entry>
+  <entry key="userprops.userPropsForGroup">
+		select p.username,p.propname,propvalue from  gs_auth.user_props p, gs_auth.group_members m where m.groupname= ? and m.username = p.username
+  </entry>  
+  <entry key="userprops.deleteForUser">
+	delete from gs_auth.user_props where username=?
+  </entry>
+  <entry key="userprops.insert">
+	insert into gs_auth.user_props(username,propname,propvalue) values (?,?,?)
+  </entry>
+  <entry key="userprops.deleteAll">
+	delete from gs_auth.user_props 		
+  </entry>
+  
+    <!-- since GeoServer version 2.3.0 -->  
+  <entry key="user.usersHavingProperty">
+    select u.name,u.password,u.enabled from gs_auth.users u ,gs_auth.user_props p where u.name=p.username and p.propname = ? 
+  </entry>
+    <entry key="userprops.usersHavingProperty">
+    select p.username,p.propname,p.propvalue from gs_auth.user_props p  where exists (select p1.username from gs_auth.user_props p1 where p.username=p1.username and p1.propname = ?) 
+  </entry> 
+  <entry key="userprops.userCountHavingProperty">
+    select count(*) from gs_auth.user_props p where  p.propname = ? 
+  </entry>
+    
+  <entry key="user.usersNotHavingProperty">
+    select u.name,u.password,u.enabled from gs_auth.users u  where not exists (select p.username from gs_auth.user_props p where u.name=p.username and p.propname = ?) 
+  </entry>
+  <entry key="userprops.usersNotHavingProperty">
+    select p.username,p.propname,p.propvalue from gs_auth.user_props p  where not exists (select p1.username from gs_auth.user_props p1 where p.username=p1.username and p1.propname = ?) 
+  </entry>  
+  <entry key="userprops.userCountNotHavingProperty">
+    select count(*) from gs_auth.users u  where not exists (select p.username from gs_auth.user_props p where u.name=p.username and p.propname = ?) 
+  </entry>
+      
+   <entry key="user.usersHavingPropertyValue">
+    select u.name,u.password,u.enabled from gs_auth.users u ,gs_auth.user_props p where u.name=p.username and p.propname=? and p.propvalue=? 
+  </entry>
+  <entry key="userprops.usersHavingPropertyValue">
+    select p.username,p.propname,p.propvalue from gs_auth.user_props p  where exists (select p1.username from gs_auth.user_props p1 where p.username=p1.username and p1.propname = ? and p1.propvalue=?) 
+  </entry>    
+  <entry key="userprops.userCountHavingPropertyValue">
+    select count(*) from gs_auth.user_props p where  p.propname = ? and p.propvalue = ? 
+  </entry>      
+        
+  <!--  end GeoServer version 2.3.0 -->  
+  
+  
+  <entry key="groups.count">
+	select count(*) from gs_auth.groups
+  </entry>
+  <entry key="groups.all">
+	select name,enabled from gs_auth.groups
+  </entry>
+  <entry key="groups.keyed">
+	select enabled from gs_auth.groups where name = ?
+  </entry>
+  <entry key="groups.insert">
+	insert into  gs_auth.groups(name ,enabled) values (?,?)
+  </entry>
+  <entry key="groups.update">
+	update gs_auth.groups set  enabled = ? where name = ?
+  </entry>
+  <entry key="groups.delete">
+	delete from  gs_auth.groups where name = ?
+  </entry>
+  <entry key="groups.deleteAll">
+	delete from  gs_auth.groups 
+  </entry>
+  
+  
+
+  <entry key="groupmembers.groupsForUser">
+	select m.groupname,g.enabled from gs_auth.group_members m, gs_auth.groups g where m.username = ? and m.groupname=g.name
+  </entry>
+  <entry key="groupmembers.usersForGroup">
+	select m.username,u.password,u.enabled from gs_auth.group_members m, gs_auth.users u where m.groupname = ? and m.username = u.name
+  </entry>
+  <entry key="groupmembers.insert">
+	insert into gs_auth.group_members(groupname,username) values (?,?)
+  </entry>
+  <entry key="groupmembers.delete">
+	delete from gs_auth.group_members where groupname=? and username = ?
+  </entry>
+  <entry key="groupmembers.deleteGroup">
+	delete from gs_auth.group_members where groupname=? 
+  </entry>
+  <entry key="groupmembers.deleteUser">
+	delete from gs_auth.group_members where username = ?
+  </entry>
+  <entry key="groupmembers.deleteAll">
+	delete from gs_auth.group_members 
+  </entry>
+	  
+</properties>

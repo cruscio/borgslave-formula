@@ -1,0 +1,17 @@
+GEOSERVER_USERNAME="{{ pillar["borg_client"]["geoserver_username"] }}"
+GEOSERVER_PASSWORD="{{ pillar["borg_client"]["geoserver_password"] }}"
+GEOSERVER_PGSQL_DATABASE="{{ pillar["borg_client"]["pgsql_database"] }}"
+GEOSERVER_PGSQL_USERNAME="{{ pillar["borg_client"]["pgsql_username"] }}"
+GEOSERVER_PGSQL_PASSWORD="{{ pillar["borg_client"]["pgsql_password"] }}"
+GEOSERVER_PGSQL_PORT=5433
+
+MASTER_PGSQL_HOST="{{ pillar["borg_master"]["pgsql_host"] }}"
+MASTER_PGSQL_PORT="{{ pillar["borg_master"]["pgsql_port"] }}"
+MASTER_PGSQL_DATABASE="{{ pillar["borg_master"]["pgsql_database"] }}"
+MASTER_PGSQL_SCHEMA="{{ pillar["borg_master"]["pgsql_schema"] }}"
+MASTER_PGSQL_USERNAME="{{ pillar["borg_master"]["pgsql_username"] }}"
+MASTER_PGSQL_PASSWORD="{{ pillar["borg_master"]["pgsql_password"] }}"
+
+CODE_BRANCH="{{ pillar["borgslave_sync"]["branch"] }}"
+
+LISTEN_CHANNELS="{{salt['grains.get']('borg:listen_channels',"geoserver")}}"

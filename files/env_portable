@@ -1,0 +1,37 @@
+GEOSERVER_USERNAME="admin"
+GEOSERVER_PASSWORD="admin"
+GEOSERVER_PGSQL_DATABASE="{{ pillar["borg_client"]["pgsql_database"] }}"
+GEOSERVER_PGSQL_USERNAME="{{ pillar["borg_client"]["pgsql_username"] }}"
+
+MASTER_PGSQL_HOST="{{ pillar["borg_master"]["pgsql_host"] }}"
+MASTER_PGSQL_PORT="{{ pillar["borg_master"]["pgsql_port"] }}"
+MASTER_PGSQL_DATABASE="{{ pillar["borg_master"]["pgsql_database"] }}"
+MASTER_PGSQL_SCHEMA="{{ pillar["borg_master"]["pgsql_schema"] }}"
+MASTER_PGSQL_USERNAME="{{ pillar["borg_master"]["pgsql_username"] }}"
+MASTER_PGSQL_PASSWORD="{{ pillar["borg_master"]["pgsql_password"] }}"
+
+CODE_BRANCH="{{ pillar["borgslave_sync"]["branch"] }}"
+{% if salt["grains.get"]("borgslave:name","") != "" -%}
+SLAVE_NAME="{{ salt['grains.get']("borgslave:name","") }}"
+{% endif -%}
+{% if salt["grains.get"]("borgslave:sync_server","") != "" -%}
+SYNC_SERVER="{{ salt['grains.get']("borgslave:sync_server","") }}"
+{% endif -%}
+{% if salt["grains.get"]("borgslave:sync_path","") != "" -%}
+SYNC_PATH="{{ salt['grains.get']("borgslave:sync_path","")  }}"
+{% endif -%}
+
+SKIP_AUTH=true
+SKIP_RULES=true
+
+{% if salt["grains.get"]("borgslave:feature_filter","") != "" -%}
+FEATURE_FILTER="{{ salt['grains.get']("borgslave:feature_filter","")  }}"
+{% endif -%}
+{% if salt["grains.get"]("borgslave:wms_filter","") != "" -%}
+WMS_FILTER="{{ salt['grains.get']("borgslave:wms_filter","")  }}"
+{% endif -%}
+{% if salt["grains.get"]("borgslave:layergroup_filter","") != "" -%}
+LAYERGROUP_FILTER="{{ salt['grains.get']("borgslave:layergroup_filter","")  }}"
+{% endif -%}
+
+LISTEN_CHANNELS="{{salt['grains.get']('borg:listen_channels',"geoserver")}}"

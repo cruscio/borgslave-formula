@@ -1,0 +1,9 @@
+[extensions]
+strip = 
+
+[paths]
+default = {{ pillar['borg_client']['state_repo'] }}
+
+[hooks]
+precommit = .hg/denied.sh
+pretxnchangegroup = code/venv/bin/honcho -e code/.env run code/venv/bin/python code/slave_sync.py
