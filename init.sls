@@ -148,6 +148,7 @@ postgresql:
     file.managed:
         - source: salt://borgslave-formula/files/pg_scofflaw_auth_script
         - template: jinja
+        - mode: 755
 
 pg_scofflaw.conf:
     file.managed:
