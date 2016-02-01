@@ -1,0 +1,1 @@
+{{ pillar["borg_client"]["pg_scofflaw_auth_script"] }}

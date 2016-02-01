@@ -144,6 +144,12 @@ postgresql:
         - name: 'openssl req -new -x509 -nodes -out /opt/pg_scofflaw/cert.pem -keyout /opt/pg_scofflaw/cert.pem -subj "/C=AU/ST=Western Australia/L=Perth/O=Department of Parks and Wildlife/CN=pg_scofflaw SSL cert"'
         - unless: "test -f /opt/pg_scofflaw/cert.pem"
 
+/opt/pg_scofflaw/pg_scofflaw_auth_script:
+    file.managed:
+        - source: salt://borgslave-formula/files/pg_scofflaw_auth_script
+        - template: jinja
+        - mode: 755
+
 pg_scofflaw.conf:
     file.managed:
         - name: /etc/{% if grains["os_family"] == "Debian" %}supervisor/conf.d/pg_scofflaw.conf{% elif grains["os_family"] == "Arch" %}supervisor.d/pg_scofflaw.ini{% endif %}

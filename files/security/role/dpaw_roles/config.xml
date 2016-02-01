@@ -6,7 +6,7 @@
   <propertyFileNameDML>rolesdml.xml</propertyFileNameDML>
   <jndi>false</jndi>
   <driverClassName>org.postgresql.Driver</driverClassName>
-  <connectURL>jdbc:postgresql://localhost:5433/{{ pillar["borg_client"]["pgsql_database"] }}</connectURL>
+  <connectURL>jdbc:postgresql://localhost:{{ pillar["borg_client"]["pgsql_port"] }}/{{ pillar["borg_client"]["pgsql_database"] }}</connectURL>
   <userName>{{ pillar["borg_client"]["pgsql_username"] }}</userName>
   <password>plain:{{ pillar["borg_client"]["pgsql_password"] }}</password>
   <creatingTables>false</creatingTables>
