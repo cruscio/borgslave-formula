@@ -2,6 +2,7 @@ GEOSERVER_USERNAME="admin"
 GEOSERVER_PASSWORD="admin"
 GEOSERVER_PGSQL_DATABASE="{{ pillar["borg_client"]["pgsql_database"] }}"
 GEOSERVER_PGSQL_USERNAME="{{ pillar["borg_client"]["pgsql_username"] }}"
+GEOSERVER_PGSQL_PORT="{{ pillar["borg_client"]["pgsql_port"] }}"
 
 MASTER_PGSQL_HOST="{{ pillar["borg_master"]["pgsql_host"] }}"
 MASTER_PGSQL_PORT="{{ pillar["borg_master"]["pgsql_port"] }}"

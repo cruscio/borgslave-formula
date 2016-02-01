@@ -2,6 +2,9 @@ borg_client:
     pgsql_database: "[name for slave DB goes here]"
     pgsql_username: "[admin username for slave DB goes here]"
     pgsql_password: "[admin password for slave DB goes here]"
+    # localhost-only port for DB instance.
+    # this should NOT be the default of 5432, that is reserved for the public pg_scofflaw auth proxy
+    pgsql_port: "5433"
     geoserver_username: "admin"
     geoserver_password: "[geoserver admin password goes here]"
     default_crs: "EPSG:4326"
