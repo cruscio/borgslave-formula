@@ -154,6 +154,7 @@ pg_scofflaw.conf:
     file.managed:
         - name: /etc/{% if grains["os_family"] == "Debian" %}supervisor/conf.d/pg_scofflaw.conf{% elif grains["os_family"] == "Arch" %}supervisor.d/pg_scofflaw.ini{% endif %}
         - source: salt://borgslave-formula/files/pg_scofflaw.conf
+        - template: jinja
         - watch_in:
             - supervisord: pg_scofflaw
 
