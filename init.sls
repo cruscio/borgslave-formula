@@ -170,14 +170,6 @@ pg_scofflaw:
         - require:
             - file: /etc/id_rsa_borg
 
-# guarantee dpaw-borg-state has the latest file
-sync_dpaw-borga-state:
-    cmd.run:
-        - name: "hg pull -u -e 'ssh -o StrictHostKeyChecking=no -i /etc/id_rsa_borg'"
-        - cwd: /opt/dpaw-borg-state
-        - require:
-            - cmd: /opt/dpaw-borg-state
-
 # set up borgslave-sync repository (i.e. sync client code)
 /opt/dpaw-borg-state/code:
     cmd.run:
