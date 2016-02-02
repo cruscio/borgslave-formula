@@ -412,6 +412,7 @@ geoserver_patch_install:
         - name: "cp -rf /opt/geoserver-patch/{{ geoserver_version }}/* /opt/geoserver-{{ geoserver_version }}/webapps/geoserver"
         - user: www-data
         - group: www-data
+        - onlyif: "test -f /opt/geoserver-patch/{{ geoserver_version }}"
         - watch:
             - cmd: geoserver_patch_sync
 
