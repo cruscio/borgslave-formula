@@ -126,6 +126,7 @@ postgresql:
         - template: jinja
 
 
+{% if slave_type == "" %}
 # set up pg_scofflaw, PostgreSQL client auth proxy
 /opt/pg_scofflaw:
     git.latest:
@@ -165,6 +166,8 @@ pg_scofflaw.conf:
 pg_scofflaw:
     supervisord:
         - running
+
+{% endif %}
 
 # set up dpaw-borg-state repository
 /opt/dpaw-borg-state:
@@ -320,7 +323,10 @@ slave_poll.conf:
             - archive: geoserverpkgs
             - file: geoserver.conf
             - file: slave_poll.conf
+            {% if slave_type == "" %}
             - file: pg_scofflaw.conf
+            {% endif %}
+
 
 # last bit of GeoServer jetty wiring
 /opt/geoserver:
@@ -445,8 +451,8 @@ geoserver:
 
 # jetty takes ages to bootstrap, give it time
 geoserver_wait:
-    cmd.run:
-        - name: 'sleep 20'
+    cmd.script:
+        - source: salt://borgslave-formula/files/wait_until_geoserver_running.sh 
         - require:
             - supervisord: geoserver
 
