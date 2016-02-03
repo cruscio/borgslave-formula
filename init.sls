@@ -8,7 +8,7 @@
 {% set jetty_version = '9.2.14.v20151106' %}
 {% set jetty_md5 = '74e6b977e3b4087cf56cccccbbb19886' %}
 {% set postgres_version = '9.5' %}
-
+{% set postgres_port = pillar["borg_client"]["pgsql_port"] %}
 
 # portable flags
 {% set slave_type = "" %}
@@ -20,6 +20,7 @@
 
 # install nginx for portable slave
 {% if slave_type == "portable" %}
+{% set postgres_port = '5432' %}
 nginx_pkg:
     pkgrepo.managed:
         - ppa: nginx/stable
@@ -99,6 +100,7 @@ postgresql:
         - makedirs: True
         - context:
             postgres_version: {{ postgres_version }}
+            postgres_port: {{ postgres_port }}
         - watch_in:
             - service: postgresql
 
@@ -124,6 +126,7 @@ postgresql:
         - template: jinja
 
 
+{% if slave_type == "" %}
 # set up pg_scofflaw, PostgreSQL client auth proxy
 /opt/pg_scofflaw:
     git.latest:
@@ -154,12 +157,17 @@ pg_scofflaw.conf:
     file.managed:
         - name: /etc/{% if grains["os_family"] == "Debian" %}supervisor/conf.d/pg_scofflaw.conf{% elif grains["os_family"] == "Arch" %}supervisor.d/pg_scofflaw.ini{% endif %}
         - source: salt://borgslave-formula/files/pg_scofflaw.conf
+        - template: jinja
+        - context:
+            postgres_port: {{ postgres_port }}
         - watch_in:
             - supervisord: pg_scofflaw
 
 pg_scofflaw:
     supervisord:
         - running
+
+{% endif %}
 
 # set up dpaw-borg-state repository
 /opt/dpaw-borg-state:
@@ -181,6 +189,8 @@ pg_scofflaw:
     file.managed:
         - source: salt://borgslave-formula/files/env{{ file_suffix }}
         - template: jinja
+        - context:
+            postgres_port: {{ postgres_port }}
         - require:
             - cmd: /opt/dpaw-borg-state
 
@@ -313,7 +323,10 @@ slave_poll.conf:
             - archive: geoserverpkgs
             - file: geoserver.conf
             - file: slave_poll.conf
+            {% if slave_type == "" %}
             - file: pg_scofflaw.conf
+            {% endif %}
+
 
 # last bit of GeoServer jetty wiring
 /opt/geoserver:
@@ -364,6 +377,8 @@ slave_poll.conf:
         - source: salt://borgslave-formula/files/security{{ file_suffix }}
         - include_empty: True
         - template: jinja
+        - context:
+            postgres_port: {{ postgres_port }}
         - watch_in:
             - supervisord: geoserver
 
@@ -412,6 +427,7 @@ geoserver_patch_install:
         - name: "cp -rf /opt/geoserver-patch/{{ geoserver_version }}/* /opt/geoserver-{{ geoserver_version }}/webapps/geoserver"
         - user: www-data
         - group: www-data
+        - onlyif: "test -f /opt/geoserver-patch/{{ geoserver_version }}"
         - watch:
             - cmd: geoserver_patch_sync
 
@@ -435,8 +451,8 @@ geoserver:
 
 # jetty takes ages to bootstrap, give it time
 geoserver_wait:
-    cmd.run:
-        - name: 'sleep 20'
+    cmd.script:
+        - source: salt://borgslave-formula/files/wait_until_geoserver_running.sh 
         - require:
             - supervisord: geoserver
 

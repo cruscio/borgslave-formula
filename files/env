@@ -3,7 +3,7 @@ GEOSERVER_PASSWORD="{{ pillar["borg_client"]["geoserver_password"] }}"
 GEOSERVER_PGSQL_DATABASE="{{ pillar["borg_client"]["pgsql_database"] }}"
 GEOSERVER_PGSQL_USERNAME="{{ pillar["borg_client"]["pgsql_username"] }}"
 GEOSERVER_PGSQL_PASSWORD="{{ pillar["borg_client"]["pgsql_password"] }}"
-GEOSERVER_PGSQL_PORT="{{ pillar["borg_client"]["pgsql_port"] }}"
+GEOSERVER_PGSQL_PORT="{{ postgres_port }}"
 
 MASTER_PGSQL_HOST="{{ pillar["borg_master"]["pgsql_host"] }}"
 MASTER_PGSQL_PORT="{{ pillar["borg_master"]["pgsql_port"] }}"
