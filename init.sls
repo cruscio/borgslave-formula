@@ -494,6 +494,8 @@ slave_poll.conf:
 geoserver:
     supervisord:
         - running
+        - require:
+            - service: postgresql
 
 # jetty takes ages to bootstrap, give it time
 geoserver_wait:
@@ -505,5 +507,8 @@ geoserver_wait:
 slave_poll:
     supervisord:
         - running
+        - require:
+            - supervisord: geoserver
+    
 
 
