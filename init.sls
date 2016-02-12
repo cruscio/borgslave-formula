@@ -508,7 +508,7 @@ geoserver_wait:
 
 sync_dpaw_borg_state:
     cmd.run:
-        - name: "hg pull -u -e \"ssh -i /etc/id_rsa_borg\""
+        - name: "./code/venv/bin/honcho -e ./code/.env run ./code/venv/bin/python ./code/slave_poll.py"
         - cwd: /opt/dpaw-borg-state
         - require:
             - file: slave_poll.conf
