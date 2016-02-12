@@ -453,13 +453,13 @@ geoserver.conf:
         - context:
             postgres_port: {{ postgres_port }}
         - require:
-            - cmd: /opt/dpaw-borg-state
+            - cmd: /opt/dpaw-borg-state/code
 
 /opt/dpaw-borg-state/code/venv:
     virtualenv.managed:
         - requirements: /opt/dpaw-borg-state/code/requirements.txt
         - require:
-            - cmd: /opt/dpaw-borg-state/code
+            - file: /opt/dpaw-borg-state/code/.env
 
 # set up supervisor job for slave_poll
 slave_poll.conf:
@@ -468,6 +468,8 @@ slave_poll.conf:
         - source: salt://borgslave-formula/files/slave_poll.conf
         - watch_in:
             - supervisord: slave_poll
+        - require:
+            - virtualenv: /opt/dpaw-borg-state/code/venv
 
 ##############################################################################################################
 # Load new configuration and restart geoserver and slave_poll
@@ -503,6 +505,13 @@ geoserver_wait:
         - source: salt://borgslave-formula/files/wait_until_geoserver_running.sh 
         - require:
             - supervisord: geoserver
+
+sync_dpaw_borg_state:
+    cmd.run:
+        - name: "hg pull -u -e \"ssh -i /etc/id_rsa_borg\""
+        - cwd: /opt/dpaw-borg-state
+        - require:
+            - file: slave_poll.conf
 
 slave_poll:
     supervisord:
