@@ -16,33 +16,40 @@
 {% if salt['grains.get']('borgslave:sync_server', None) %}
 {% set slave_type = "portable" %}
 {% set file_suffix = "_portable" %}
+{% set postgres_port = '5432' %}
 {% endif %}
 
-# install nginx for portable slave
-{% if slave_type == "portable" %}
-{% set postgres_port = '5432' %}
-nginx_pkg:
-    pkgrepo.managed:
-        - ppa: nginx/stable
+##############################################################################################################
+# Install required common lib
+##############################################################################################################
+borgpkgs:
     pkg.installed:
-        - name: nginx-extras
+        - refresh: False
+        - pkgs:
+            - unzip
+            - python-virtualenv
+            - gdal-bin
+            - python-dev
+            - python3-dev
 
-/etc/nginx:
-    file.recurse:
-        - makedirs: True
-        - clean: True
-        - source: salt://borgslave-formula/files/nginx
+##############################################################################################################
+# Install ssh keys for syncing the state repo and copying files from master
+##############################################################################################################
+/etc/id_rsa_borg:
+    file.managed:
+        - source: salt://borgslave-formula/files/id_rsa_borg
+        - mode: 600
+        - template: jinja
 
-nginx:
-    service:
-        - running
-        - watch:
-            - file: /etc/nginx
-        - require:
-            - pkg: nginx_pkg       
-{% endif%}
+/etc/id_rsa_borg.pub:
+    file.managed:
+        - source: salt://borgslave-formula/files/id_rsa_borg.pub
+        - mode: 644
+        - template: jinja
 
-
+##############################################################################################################
+# Create user and add authorized keys for slave server 
+##############################################################################################################
 # create borg user, to allow portable slave to sync from another slave
 {% if slave_type == "" %}
 borg:
@@ -66,17 +73,34 @@ borg:
         - template: jinja
 {% endif %}
 
-borgpkgs:
+##############################################################################################################
+# Install nginx for portable slave server
+##############################################################################################################
+{% if slave_type == "portable" %}
+nginx_pkg:
+    pkgrepo.managed:
+        - ppa: nginx/stable
     pkg.installed:
-        - refresh: False
-        - pkgs:
-            - unzip
-            - python-virtualenv
-            - gdal-bin
-            - python-dev
-            - python3-dev
+        - name: nginx-extras
 
+/etc/nginx:
+    file.recurse:
+        - makedirs: True
+        - clean: True
+        - source: salt://borgslave-formula/files/nginx
 
+nginx:
+    service:
+        - running
+        - watch:
+            - file: /etc/nginx
+        - require:
+            - pkg: nginx_pkg       
+{% endif%}
+
+##############################################################################################################
+# Install postgres
+##############################################################################################################
 # Setup PostgreSQL + PostGIS
 postgresql_pkg:
     pkgrepo.managed:
@@ -88,10 +112,6 @@ postgresql_pkg:
         - pkgs:
             - postgresql-{{ postgres_version }}-postgis-2.2
             - libpq-dev
-
-postgresql:
-    service:
-        - running
 
 /etc/postgresql/{{ postgres_version }}/main/postgresql.conf:
     file.managed:
@@ -112,20 +132,37 @@ postgresql:
         - watch_in:
             - service: postgresql
 
-# copy over deployment keys (used for syncing the state repo and copying files from the master)
-/etc/id_rsa_borg:
+/etc/postgresql/{{ postgres_version }}/main/slave_create.sql:
     file.managed:
-        - source: salt://borgslave-formula/files/id_rsa_borg
-        - mode: 600
+        - source: salt://borgslave-formula/files/pgmain/slave_create.sql
         - template: jinja
+        - makedirs: True
 
-/etc/id_rsa_borg.pub:
-    file.managed:
-        - source: salt://borgslave-formula/files/id_rsa_borg.pub
-        - mode: 644
-        - template: jinja
+postgresql:
+    service:
+        - running
 
+# check that borg DB is created locally
+borg_slave:
+    cmd.run:
+        - name: "createdb {{ pillar["borg_client"]["pgsql_database"] }} && psql -d {{ pillar["borg_client"]["pgsql_database"] }} -f /etc/postgresql/{{ postgres_version }}/main/slave_create.sql"
+        - user: postgres
+        - unless: 'psql -l | grep "^ {{ pillar["borg_client"]["pgsql_database"] }}\b"'
+        - require:
+            - file: /etc/postgresql/{{ postgres_version }}/main/slave_create.sql
+            - service: postgresql
 
+# add in oim DB user
+'psql -d {{ pillar["borg_client"]["pgsql_database"] }} -c "CREATE ROLE \"{{ pillar["borg_client"]["pgsql_username"] }}\" WITH LOGIN SUPERUSER PASSWORD ''{{ pillar["borg_client"]["pgsql_password"] }}'';"':
+    cmd.run:
+        - user: postgres
+        - unless: 'psql -d {{ pillar["borg_client"]["pgsql_database"] }} -c "SELECT * FROM pg_roles WHERE rolname = ''{{ pillar["borg_client"]["pgsql_username"] }}'';" | grep "^ {{ pillar["borg_client"]["pgsql_username"] }}\b"'
+        - require: 
+            - cmd: borg_slave
+
+##############################################################################################################
+# Install scofflaw
+##############################################################################################################
 {% if slave_type == "" %}
 # set up pg_scofflaw, PostgreSQL client auth proxy
 /opt/pg_scofflaw:
@@ -169,67 +206,9 @@ pg_scofflaw:
 
 {% endif %}
 
-# set up dpaw-borg-state repository
-/opt/dpaw-borg-state:
-    cmd.run:
-        - name: "hg clone {{ pillar['borg_client']['state_repo'] }} /opt/dpaw-borg-state -e 'ssh -o StrictHostKeyChecking=no -i /etc/id_rsa_borg'"
-        - unless: "test -d /opt/dpaw-borg-state && test -d /opt/dpaw-borg-state/.hg" 
-        - require:
-            - file: /etc/id_rsa_borg
-
-# set up borgslave-sync repository (i.e. sync client code)
-/opt/dpaw-borg-state/code:
-    cmd.run:
-        - name: "git clone {{ pillar['borg_client']['code_repo'] }} /opt/dpaw-borg-state/code"
-        - unless: "test -d /opt/dpaw-borg-state/code && test -d /opt/dpaw-borg-state/code/.git" 
-        - require:
-            - cmd: /opt/dpaw-borg-state
-
-/opt/dpaw-borg-state/code/.env:
-    file.managed:
-        - source: salt://borgslave-formula/files/env{{ file_suffix }}
-        - template: jinja
-        - context:
-            postgres_port: {{ postgres_port }}
-        - require:
-            - cmd: /opt/dpaw-borg-state
-
-/opt/dpaw-borg-state/code/venv:
-    virtualenv.managed:
-        - requirements: /opt/dpaw-borg-state/code/requirements.txt
-        - require:
-            - cmd: /opt/dpaw-borg-state/code
-
-# add in pre-update hook to disable commits to the state repository
-/opt/dpaw-borg-state/.hg/denied.sh:
-    file.managed:
-        - source: salt://borgslave-formula/files/denied.sh
-
-/opt/dpaw-borg-state/.hg/hgrc:
-    file.managed:
-        - source: salt://borgslave-formula/files/hgrc
-        - template: jinja
-        - require:
-            - virtualenv: /opt/dpaw-borg-state/code/venv
-
-# check that borg DB is created locally
-borg_slave:
-    cmd.run:
-        - name: "createdb {{ pillar["borg_client"]["pgsql_database"] }} && psql -d {{ pillar["borg_client"]["pgsql_database"] }} -f /opt/dpaw-borg-state/slave_create.sql"
-        - user: postgres
-        - unless: 'psql -l | grep "^ {{ pillar["borg_client"]["pgsql_database"] }}\b"'
-        - require:
-            - cmd: /opt/dpaw-borg-state
-
-# add in oim DB user
-'psql -d {{ pillar["borg_client"]["pgsql_database"] }} -c "CREATE ROLE \"{{ pillar["borg_client"]["pgsql_username"] }}\" WITH LOGIN SUPERUSER PASSWORD ''{{ pillar["borg_client"]["pgsql_password"] }}'';"':
-    cmd.run:
-        - user: postgres
-        - unless: 'psql -d {{ pillar["borg_client"]["pgsql_database"] }} -c "SELECT * FROM pg_roles WHERE rolname = ''{{ pillar["borg_client"]["pgsql_username"] }}'';" | grep "^ {{ pillar["borg_client"]["pgsql_username"] }}\b"'
-        - require: 
-            - cmd: borg_slave
-
-
+##############################################################################################################
+# Install geoserver
+##############################################################################################################
 # the build of jetty that comes packaged with GeoServer is old and has a number of irritating bugs,
 # so let's unpack a newer edition and use that
 jetty-server:
@@ -295,38 +274,6 @@ setup_data_dir:
         - name: /opt/jetty-distribution-{{ jetty_version }}/data_dir
         - target: /opt/geoserver-{{ geoserver_version }}/data_dir
         - force: True
-    
-
-# set up supervisor job for GeoServer
-geoserver.conf:
-    file.managed:
-        - name: /etc/{% if grains["os_family"] == "Debian" %}supervisor/conf.d/geoserver.conf{% elif grains["os_family"] == "Arch" %}supervisor.d/geoserver.ini{% endif %}
-        - source: salt://borgslave-formula/files/geoserver.conf
-        - template: jinja
-        - context:
-            marlin_version: {{ marlin_version }}
-        - watch_in:
-            - supervisord: geoserver
-
-# set up supervisor job for slave_poll
-slave_poll.conf:
-    file.managed:
-        - name: /etc/{% if grains["os_family"] == "Debian" %}supervisor/conf.d/slave_poll.conf{% elif grains["os_family"] == "Arch" %}supervisor.d/slave_poll.ini{% endif %}
-        - source: salt://borgslave-formula/files/slave_poll.conf
-        - watch_in:
-            - supervisord: slave_poll
-
-# kill the geoserver/slave sync instance during a package upgrade
-'supervisorctl stop geoserver slave_poll; supervisorctl reread;':
-    cmd.run:
-        - onchanges:
-            - archive: geoserverpkgs
-            - file: geoserver.conf
-            - file: slave_poll.conf
-            {% if slave_type == "" %}
-            - file: pg_scofflaw.conf
-            {% endif %}
-
 
 # last bit of GeoServer jetty wiring
 /opt/geoserver:
@@ -334,18 +281,20 @@ slave_poll.conf:
         - target: /opt/jetty-distribution-{{ jetty_version }}
         - force: True
 
-
 # add marlin 2D renderer, it has marginally better performance at high threadcounts
 /opt/geoserver/lib/marlin-{{ marlin_version }}.jar:
     file.managed:
         - source: https://github.com/bourgesl/marlin-renderer/releases/download/v{{ marlin_tag }}/marlin-{{ marlin_version }}.jar
         - source_hash: md5={{ marlin_md5 }}
+        - require:
+            - file: /opt/geoserver
 
 /opt/geoserver/lib/marlin-{{ marlin_version }}-sun-java2d.jar:
     file.managed:
         - source: https://github.com/bourgesl/marlin-renderer/releases/download/v{{ marlin_tag }}/marlin-{{ marlin_version }}-sun-java2d.jar
         - source_hash: md5={{ marlin_java2d_md5 }}
-
+        - require:
+            - file: /opt/geoserver
 
 # trash example layers
 /opt/geoserver/data_dir/workspaces:
@@ -353,6 +302,8 @@ slave_poll.conf:
         - clean: True
         - onchanges:
             - archive: geoserverpkgs
+        - require:
+            - file: /opt/geoserver
     
 /opt/geoserver/data_dir/layergroups:
     file.recurse:
@@ -361,6 +312,8 @@ slave_poll.conf:
         - include_empty: True
         - onchanges:
             - archive: geoserverpkgs
+        - require:
+            - file: /opt/geoserver
 
 /opt/geoserver/data_dir/gwc-layers:
     file.recurse:
@@ -369,7 +322,8 @@ slave_poll.conf:
         - include_empty: True
         - onchanges:
             - archive: geoserverpkgs
-
+        - require:
+            - file: /opt/geoserver
 
 # fix default security configuration
 /opt/geoserver/data_dir/security:
@@ -381,12 +335,16 @@ slave_poll.conf:
             postgres_port: {{ postgres_port }}
         - watch_in:
             - supervisord: geoserver
+        - require:
+            - file: /opt/geoserver
 
 # because we set the master PW, out-of-box geoserver will have a broken keystore.
 /opt/geoserver/data_dir/security/geoserver.jkecs:
     file.absent:
         - onchanges:
             - archive: geoserverpkgs
+        - require:
+            - file: /opt/geoserver
 
 # change all of the contact info for each of the GeoServer plugins
 /opt/geoserver/data_dir:
@@ -395,6 +353,8 @@ slave_poll.conf:
         - template: jinja
         - watch_in:
             - supervisord: geoserver
+        - require:
+            - file: /opt/geoserver
 
     cmd.run:
         - name: chown -R www-data:www-data /opt/geoserver-{{ geoserver_version }}/data_dir
@@ -405,7 +365,8 @@ slave_poll.conf:
     cmd.run:
         - onchanges:
             - archive: geoserverpkgs
-
+        - require:
+            - file: /opt/geoserver
 
 # Last-minute GeoServer clobbering
 geoserver_patch_clone:
@@ -431,11 +392,98 @@ geoserver_patch_install:
         - watch:
             - cmd: geoserver_patch_sync
 
+# set up supervisor job for GeoServer
+geoserver.conf:
+    file.managed:
+        - name: /etc/{% if grains["os_family"] == "Debian" %}supervisor/conf.d/geoserver.conf{% elif grains["os_family"] == "Arch" %}supervisor.d/geoserver.ini{% endif %}
+        - source: salt://borgslave-formula/files/geoserver.conf
+        - template: jinja
+        - context:
+            marlin_version: {{ marlin_version }}
+        - require:
+            - file: /opt/geoserver
+        - watch_in:
+            - supervisord: geoserver
+
+##############################################################################################################
+# Setup borg state repository
+##############################################################################################################
 # if a new version of GeoServer has been extracted, clobber the sync state cache!
-'rm -rf /opt/dpaw-borg-state/code/.sync_status':
+'rm -rf /opt/dpaw-borg-state':
     cmd.run:
         - onchanges:
             - archive: geoserverpkgs
+            - pkg: postgresql_pkg
+
+# init dpaw-borg-state repository
+/opt/dpaw-borg-state:
+    cmd.run:
+        - name: "hg init /opt/dpaw-borg-state"
+        - unless: "test -d /opt/dpaw-borg-state && test -d /opt/dpaw-borg-state/.hg" 
+        - require:
+            - file: /etc/id_rsa_borg
+
+# add in pre-update hook to disable commits to the state repository
+/opt/dpaw-borg-state/.hg/denied.sh:
+    file.managed:
+        - source: salt://borgslave-formula/files/denied.sh
+
+/opt/dpaw-borg-state/.hg/hgrc:
+    file.managed:
+        - source: salt://borgslave-formula/files/hgrc
+        - template: jinja
+        - require:
+            - virtualenv: /opt/dpaw-borg-state/code/venv
+
+##############################################################################################################
+# Setup borg state sync repository
+##############################################################################################################
+# set up borgslave-sync repository (i.e. sync client code)
+/opt/dpaw-borg-state/code:
+    cmd.run:
+        - name: "git clone {{ pillar['borg_client']['code_repo'] }} /opt/dpaw-borg-state/code"
+        - unless: "test -d /opt/dpaw-borg-state/code && test -d /opt/dpaw-borg-state/code/.git" 
+        - require:
+            - cmd: /opt/dpaw-borg-state
+
+/opt/dpaw-borg-state/code/.env:
+    file.managed:
+        - source: salt://borgslave-formula/files/env{{ file_suffix }}
+        - template: jinja
+        - context:
+            postgres_port: {{ postgres_port }}
+        - require:
+            - cmd: /opt/dpaw-borg-state/code
+
+/opt/dpaw-borg-state/code/venv:
+    virtualenv.managed:
+        - requirements: /opt/dpaw-borg-state/code/requirements.txt
+        - require:
+            - file: /opt/dpaw-borg-state/code/.env
+
+# set up supervisor job for slave_poll
+slave_poll.conf:
+    file.managed:
+        - name: /etc/{% if grains["os_family"] == "Debian" %}supervisor/conf.d/slave_poll.conf{% elif grains["os_family"] == "Arch" %}supervisor.d/slave_poll.ini{% endif %}
+        - source: salt://borgslave-formula/files/slave_poll.conf
+        - watch_in:
+            - supervisord: slave_poll
+        - require:
+            - virtualenv: /opt/dpaw-borg-state/code/venv
+
+##############################################################################################################
+# Load new configuration and restart geoserver and slave_poll
+##############################################################################################################
+# kill the geoserver/slave sync instance during a package upgrade
+'supervisorctl stop geoserver slave_poll; supervisorctl reread;':
+    cmd.run:
+        - onchanges:
+            - archive: geoserverpkgs
+            - file: geoserver.conf
+            - file: slave_poll.conf
+            {% if slave_type == "" %}
+            - file: pg_scofflaw.conf
+            {% endif %}
 
 'supervisorctl update':
     cmd.run:
@@ -448,6 +496,8 @@ geoserver_patch_install:
 geoserver:
     supervisord:
         - running
+        - require:
+            - service: postgresql
 
 # jetty takes ages to bootstrap, give it time
 geoserver_wait:
@@ -456,16 +506,18 @@ geoserver_wait:
         - require:
             - supervisord: geoserver
 
-
-# run a full sync (if necessary)
-'/opt/dpaw-borg-state/code/venv/bin/honcho -e /opt/dpaw-borg-state/code/.env run /opt/dpaw-borg-state/code/venv/bin/python /opt/dpaw-borg-state/code/slave_sync.py':
+sync_dpaw_borg_state:
     cmd.run:
+        - name: "./code/venv/bin/honcho -e ./code/.env run ./code/venv/bin/python ./code/slave_poll.py"
         - cwd: /opt/dpaw-borg-state
         - require:
-            - cmd: geoserver_wait
+            - file: slave_poll.conf
 
 slave_poll:
     supervisord:
         - running
+        - require:
+            - supervisord: geoserver
+    
 
 
