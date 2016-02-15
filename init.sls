@@ -506,13 +506,7 @@ geoserver_wait:
         - require:
             - supervisord: geoserver
 
-sync_dpaw_borg_state:
-    cmd.run:
-        - name: "./code/venv/bin/honcho -e ./code/.env run ./code/venv/bin/python ./code/slave_poll.py"
-        - cwd: /opt/dpaw-borg-state
-        - require:
-            - file: slave_poll.conf
-
+# start slave poll, which should kick off the first sync
 slave_poll:
     supervisord:
         - running
