@@ -14,4 +14,4 @@ MASTER_PGSQL_PASSWORD="{{ pillar["borg_master"]["pgsql_password"] }}"
 
 CODE_BRANCH="{{ pillar["borgslave_sync"]["branch"] }}"
 
-LISTEN_CHANNELS="{{salt['grains.get']('borg:listen_channels',"geoserver")}}"
+LISTEN_CHANNELS="{{salt['grains.get']('borg:listen_channels',"kmi")}}"
