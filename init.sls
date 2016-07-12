@@ -1,10 +1,10 @@
 # software version information
-{% set geoserver_version = '2.8.2' %}
-{% set geoserver_md5 = '4e4e5614ee0bf4271f6887718eaeef3b' %}
-{% set marlin_tag = '0.7.1' %}
-{% set marlin_version = '0.7.1-Unsafe' %}
-{% set marlin_md5 = 'ca309a98516b83462d2146780bb9236c' %}
-{% set marlin_java2d_md5 = '91f4b3335cd19cee455542d485e670c2' %}
+{% set geoserver_version = '2.9.0' %}
+{% set geoserver_md5 = '805e7371bb682395f0be93142868d854' %}
+{% set marlin_tag = '0.7.4' %}
+{% set marlin_version = '0.7.4-Unsafe' %}
+{% set marlin_md5 = '016472a7481f147ab21e70791781a2af' %}
+{% set marlin_java2d_md5 = '4fd3b328413edf3150ae58cb6acbd767' %}
 {% set jetty_version = '9.2.14.v20151106' %}
 {% set jetty_md5 = '74e6b977e3b4087cf56cccccbbb19886' %}
 {% set postgres_version = '9.5' %}
@@ -249,7 +249,7 @@ geoserverpkgs:
         - refresh: False
         - pkgs:
             - supervisor
-            - {% if grains["os_family"] == "Debian" %}openjdk-7-jdk{% elif grains["os_family"] == "Arch" %}jdk7-openjdk{% endif %}
+            - {% if grains["os_family"] == "Debian" %}openjdk-8-jdk{% elif grains["os_family"] == "Arch" %}jdk8-openjdk{% endif %}
 
     archive:
         - extracted
