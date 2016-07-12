@@ -5,8 +5,6 @@
 {% set marlin_version = '0.7.4-Unsafe' %}
 {% set marlin_md5 = '016472a7481f147ab21e70791781a2af' %}
 {% set marlin_java2d_md5 = '4fd3b328413edf3150ae58cb6acbd767' %}
-{% set jetty_version = '9.2.14.v20151106' %}
-{% set jetty_md5 = '74e6b977e3b4087cf56cccccbbb19886' %}
 {% set postgres_version = '9.5' %}
 {% set postgres_port = pillar["borg_client"]["pgsql_port"] %}
 
@@ -209,40 +207,6 @@ pg_scofflaw:
 ##############################################################################################################
 # Install geoserver
 ##############################################################################################################
-# the build of jetty that comes packaged with GeoServer is old and has a number of irritating bugs,
-# so let's unpack a newer edition and use that
-jetty-server:
-    archive:
-        - extracted
-        - name: /opt/
-        - source: http://download.eclipse.org/jetty/{{ jetty_version }}/dist/jetty-distribution-{{ jetty_version }}.tar.gz
-        - source_hash: md5={{ jetty_md5 }}
-        - if_missing: /opt/jetty-distribution-{{ jetty_version }}
-        - archive_format: tar
-        - tar_options: v
-        - watch_in:
-            - supervisord: geoserver
-            - file: deploy_geoserver
-            - file: setup_data_dir
-            - file: jetty-server
-            - cmd: jetty-server
-
-    file.recurse:
-        - name: /opt/jetty-distribution-{{ jetty_version }}
-        - source: salt://borgslave-formula/jetty
-        - include_empty: True
-        - template: jinja
-        - require:
-            - archive: jetty-server
-        - watch_in:
-            - supervisord: geoserver
-            - cmd: jetty-server
-    cmd.run:
-        - name: chown -R www-data:www-data /opt/jetty-distribution-{{ jetty_version }}
-        - require:
-            - file: jetty-server
-
-
 # install self-contained GeoServer instance
 geoserverpkgs:
     pkg.installed:
@@ -262,23 +226,9 @@ geoserverpkgs:
             - supervisord: geoserver
             - file: deploy_geoserver
 
-# wire up GeoServer to jetty
-deploy_geoserver:
-    file.symlink:
-        - name: /opt/jetty-distribution-{{ jetty_version }}/webapps
-        - target: /opt/geoserver-{{ geoserver_version }}/webapps
-        - force: True
-   
-setup_data_dir:
-    file.symlink:
-        - name: /opt/jetty-distribution-{{ jetty_version }}/data_dir
-        - target: /opt/geoserver-{{ geoserver_version }}/data_dir
-        - force: True
-
-# last bit of GeoServer jetty wiring
 /opt/geoserver:
     file.symlink:
-        - target: /opt/jetty-distribution-{{ jetty_version }}
+        - target: /opt/geoserver-{{ geoserver_version }}
         - force: True
 
 # add marlin 2D renderer, it has marginally better performance at high threadcounts
@@ -368,7 +318,7 @@ setup_data_dir:
         - require:
             - file: /opt/geoserver
 
-# Last-minute GeoServer clobbering
+# Last-minute GeoServer hotfixing
 geoserver_patch_clone:
     cmd.run:
         - name: "git clone https://github.com/parksandwildlife/geoserver-patch.git /opt/geoserver-patch"
@@ -488,7 +438,6 @@ slave_poll.conf:
 'supervisorctl update':
     cmd.run:
         - onchanges:
-            - archive: jetty-server
             - archive: geoserverpkgs
             - file: slave_poll.conf
             - file: geoserver.conf
