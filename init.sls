@@ -162,45 +162,17 @@ borg_slave:
 # Install scofflaw
 ##############################################################################################################
 {% if slave_type == "" %}
-# set up pg_scofflaw, PostgreSQL client auth proxy
-/opt/pg_scofflaw:
-    git.latest:
-        - name: "https://github.com/parksandwildlife/pg_scofflaw.git"
-        - target: "/opt/pg_scofflaw"
-        - watch_in:
-            - supervisord: pg_scofflaw
-
-/opt/pg_scofflaw/venv:
-    virtualenv.managed:
-        - python: /usr/bin/python3
-        - requirements: /opt/pg_scofflaw/requirements.txt
-        - require:
-            - git: /opt/pg_scofflaw
-
-/opt/pg_scofflaw/cert.pem:
-    cmd.run:
-        - name: 'openssl req -new -x509 -nodes -out /opt/pg_scofflaw/cert.pem -keyout /opt/pg_scofflaw/cert.pem -subj "/C=AU/ST=Western Australia/L=Perth/O=Department of Parks and Wildlife/CN=pg_scofflaw SSL cert"'
-        - unless: "test -f /opt/pg_scofflaw/cert.pem"
-
-/opt/pg_scofflaw/pg_scofflaw_auth_script:
-    file.managed:
-        - source: salt://borgslave-formula/files/pg_scofflaw_auth_script
-        - template: jinja
-        - mode: 755
+# client access strategy has changed, disable pg_scofflaw for now
 
 pg_scofflaw.conf:
-    file.managed:
+    file.absent:
         - name: /etc/{% if grains["os_family"] == "Debian" %}supervisor/conf.d/pg_scofflaw.conf{% elif grains["os_family"] == "Arch" %}supervisor.d/pg_scofflaw.ini{% endif %}
-        - source: salt://borgslave-formula/files/pg_scofflaw.conf
-        - template: jinja
-        - context:
-            postgres_port: {{ postgres_port }}
         - watch_in:
             - supervisord: pg_scofflaw
 
 pg_scofflaw:
     supervisord:
-        - running
+        - dead
 
 {% endif %}
 
