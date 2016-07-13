@@ -309,28 +309,13 @@ data_overrides:
             - file: /opt/geoserver
 
 # Last-minute GeoServer hotfixing
-geoserver_patch_clone:
-    cmd.run:
-        - name: "git clone https://github.com/parksandwildlife/geoserver-patch.git /opt/geoserver-patch"
-        - unless: "test -d /opt/geoserver-patch && test -d /opt/geoserver-patch/.git" 
+geoserver_fixes:
+    file.recurse:
+        - name: /opt/geoserver/webapps/geoserver/WEB-INF/
+        - source: salt://borgslave-formula/files/fixes
         - require:
-            - file: /etc/id_rsa_borg
+            - file: /opt/geoserver
 
-geoserver_patch_sync:
-    cmd.run:
-        - name: "git pull"
-        - cwd: /opt/geoserver-patch
-        - require:
-            - cmd: geoserver_patch_clone
-
-geoserver_patch_install:
-    cmd.run:
-        - name: "cp -rf /opt/geoserver-patch/{{ geoserver_version }}/* /opt/geoserver-{{ geoserver_version }}/webapps/geoserver"
-        - user: www-data
-        - group: www-data
-        - onlyif: "test -f /opt/geoserver-patch/{{ geoserver_version }}"
-        - watch:
-            - cmd: geoserver_patch_sync
 
 # set up supervisor job for GeoServer
 geoserver.conf:
