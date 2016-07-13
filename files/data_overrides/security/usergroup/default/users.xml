@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<userRegistry xmlns="http://www.geoserver.org/security/users" version="1.0">
+<users>
+{% if slave_type == "standard" %}
+<user enabled="true" name="{{ pillar["borg_client"]["geoserver_username"] }}" password="plain:{{ pillar["borg_client"]["geoserver_password"] }}"/>
+{% else %}
+<user enabled="true" name="admin" password="plain:admin"/>
+{% endif %}
+</users>
+<groups/>
+</userRegistry>

@@ -9,11 +9,9 @@
 {% set postgres_port = pillar["borg_client"]["pgsql_port"] %}
 
 # portable flags
-{% set slave_type = "" %}
-{% set file_suffix = "" %}
+{% set slave_type = "standard" %}
 {% if salt['grains.get']('borgslave:sync_server', None) %}
 {% set slave_type = "portable" %}
-{% set file_suffix = "_portable" %}
 {% set postgres_port = '5432' %}
 {% endif %}
 
@@ -49,7 +47,7 @@ borgpkgs:
 # Create user and add authorized keys for slave server 
 ##############################################################################################################
 # create borg user, to allow portable slave to sync from another slave
-{% if slave_type == "" %}
+{% if slave_type == "standard" %}
 borg:
     group.present:
         - gid: 8000
@@ -124,9 +122,11 @@ postgresql_pkg:
 
 /etc/postgresql/{{ postgres_version }}/main/pg_hba.conf:
     file.managed:
-        - source: salt://borgslave-formula/files/pgmain/pg_hba{{ file_suffix }}.conf
+        - source: salt://borgslave-formula/files/pgmain/pg_hba.conf
         - template: jinja
         - makedirs: True
+        - context:
+            slave_type: {{ slave_type }}
         - watch_in:
             - service: postgresql
 
@@ -161,7 +161,7 @@ borg_slave:
 ##############################################################################################################
 # Install scofflaw
 ##############################################################################################################
-{% if slave_type == "" %}
+{% if slave_type == "standard" %}
 # client access strategy has changed, disable pg_scofflaw for now
 
 pg_scofflaw.conf:
@@ -179,8 +179,22 @@ pg_scofflaw:
 ##############################################################################################################
 # Install geoserver
 ##############################################################################################################
+# updating all the java alternatives is hard, so let's remove the other candidate 
+#kill_old_java:
+#    {% if grains["os_family"] == "Debian" %}
+#    pkg.removed:
+#        - pkgs:
+#            - openjdk-7-jdk
+#            - openjdk-7-jre
+#            - openjdk-7-jre-headless
+#    {% endif %}
+
 # install self-contained GeoServer instance
 geoserverpkgs:
+{% if grains["oscodename"] == "trusty" %}
+    pkgrepo.managed:
+        - ppa: openjdk-r/ppa
+{% endif %}
     pkg.installed:
         - refresh: False
         - pkgs:
@@ -190,18 +204,20 @@ geoserverpkgs:
     archive:
         - extracted
         - name: /opt/
-        - source: http://downloads.sourceforge.net/project/geoserver/GeoServer/{{ geoserver_version }}/geoserver-{{ geoserver_version }}-bin.zip
+        - source: http://ufpr.dl.sourceforge.net/project/geoserver/GeoServer/{{ geoserver_version }}/geoserver-{{ geoserver_version }}-bin.zip
         - if_missing: /opt/geoserver-{{ geoserver_version }}/
         - source_hash: md5={{ geoserver_md5 }}
         - archive_format: zip
         - watch_in:
             - supervisord: geoserver
-            - file: deploy_geoserver
+
 
 /opt/geoserver:
     file.symlink:
         - target: /opt/geoserver-{{ geoserver_version }}
         - force: True
+        - require:
+            - archive: geoserverpkgs
 
 # add marlin 2D renderer, it has marginally better performance at high threadcounts
 /opt/geoserver/lib/marlin-{{ marlin_version }}.jar:
@@ -218,71 +234,60 @@ geoserverpkgs:
         - require:
             - file: /opt/geoserver
 
-# trash example layers
-/opt/geoserver/data_dir/workspaces:
-    file.directory:
-        - clean: True
-        - onchanges:
-            - archive: geoserverpkgs
-        - require:
-            - file: /opt/geoserver
-    
-/opt/geoserver/data_dir/layergroups:
+# install community plugins (vectortiles, geopkg)
+# snapshot taken from http://ares.boundlessgeo.com/geoserver/master/community-latest/
+geoserver_community_libs:
     file.recurse:
-        - source: salt://borgslave-formula/files/layergroups
-        - clean: True
-        - include_empty: True
-        - onchanges:
-            - archive: geoserverpkgs
+        - name: /opt/geoserver/webapps/geoserver/WEB-INF/lib/
+        - source: salt://borgslave-formula/files/libs
         - require:
             - file: /opt/geoserver
 
-/opt/geoserver/data_dir/gwc-layers:
-    file.recurse:
-        - source: salt://borgslave-formula/files/gwc-layers
-        - clean: True
-        - include_empty: True
-        - onchanges:
-            - archive: geoserverpkgs
+geoserver_geopkg:
+    archive.extracted:
+        - name: /opt/geoserver/webapps/geoserver/WEB-INF/lib/
+        - source: salt://borgslave-formula/files/geoserver-2.10-SNAPSHOT-geopkg-plugin.zip
+        - archive_format: zip
+        - if_missing: 
         - require:
             - file: /opt/geoserver
 
-# fix default security configuration
-/opt/geoserver/data_dir/security:
+# populate data directory
+data_defaults:
     file.recurse:
-        - source: salt://borgslave-formula/files/security{{ file_suffix }}
-        - include_empty: True
+        - name: /opt/geoserver_data
+        - source: salt://borgslave-formula/files/data_defaults
+        - include_empty: true
+        - template: jinja
+        - context:
+            slave_type: {{ slave_type }}
+        - unless: "test -d /opt/geoserver_data" 
+
+data_overrides:
+    file.recurse:
+        - name: /opt/geoserver_data
+        - source: salt://borgslave-formula/files/data_overrides
         - template: jinja
         - context:
             postgres_port: {{ postgres_port }}
+            slave_type: {{ slave_type }}
         - watch_in:
             - supervisord: geoserver
         - require:
-            - file: /opt/geoserver
+            - file: data_defaults
+
+    cmd.run:
+        - name: chown -R www-data:www-data /opt/geoserver_data
 
 # because we set the master PW, out-of-box geoserver will have a broken keystore.
-/opt/geoserver/data_dir/security/geoserver.jkecs:
+/opt/geoserver_data/security/geoserver.jkecs:
     file.absent:
         - onchanges:
-            - archive: geoserverpkgs
+            - file: data_overrides
         - require:
             - file: /opt/geoserver
 
 # change all of the contact info for each of the GeoServer plugins
-/opt/geoserver/data_dir:
-    file.recurse:
-        - source: salt://borgslave-formula/files/data_dir
-        - template: jinja
-        - watch_in:
-            - supervisord: geoserver
-        - require:
-            - file: /opt/geoserver
-
-    cmd.run:
-        - name: chown -R www-data:www-data /opt/geoserver-{{ geoserver_version }}/data_dir
-        - require:
-            - file: /opt/geoserver/data_dir
-
 'chown -R www-data:www-data /opt/geoserver-{{ geoserver_version }}; chmod +x /opt/geoserver/bin/*.sh;':
     cmd.run:
         - onchanges:
@@ -370,10 +375,11 @@ geoserver.conf:
 
 /opt/dpaw-borg-state/code/.env:
     file.managed:
-        - source: salt://borgslave-formula/files/env{{ file_suffix }}
+        - source: salt://borgslave-formula/files/env
         - template: jinja
         - context:
             postgres_port: {{ postgres_port }}
+            slave_type: {{ slave_type }}
         - require:
             - cmd: /opt/dpaw-borg-state/code
 
@@ -403,7 +409,7 @@ slave_poll.conf:
             - archive: geoserverpkgs
             - file: geoserver.conf
             - file: slave_poll.conf
-            {% if slave_type == "" %}
+            {% if slave_type == "standard" %}
             - file: pg_scofflaw.conf
             {% endif %}
 

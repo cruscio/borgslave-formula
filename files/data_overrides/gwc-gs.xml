@@ -1,0 +1,34 @@
+<GeoServerGWCConfig>
+  <version>1.0.0</version>
+  <directWMSIntegrationEnabled>true</directWMSIntegrationEnabled>
+  <WMSCEnabled>true</WMSCEnabled>
+  <WMTSEnabled>true</WMTSEnabled>
+  <TMSEnabled>true</TMSEnabled>
+  <securityEnabled>true</securityEnabled>
+  <cacheLayersByDefault>false</cacheLayersByDefault>
+  <cacheNonDefaultStyles>true</cacheNonDefaultStyles>
+  <metaTilingX>1</metaTilingX>
+  <metaTilingY>1</metaTilingY>
+  <gutter>0</gutter>
+  <lockProviderName>globalLock</lockProviderName>
+  <defaultCoverageCacheFormats>
+    <string>image/png</string>
+    <string>image/jpeg</string>
+  </defaultCoverageCacheFormats>
+  <defaultVectorCacheFormats>
+    <string>image/png</string>
+    <string>image/jpeg</string>
+    <string>application/json;type=geojson</string>
+    <string>application/json;type=topojson</string>
+    <string>application/json;type=utfgrid</string>
+    <string>application/x-protobuf;type=mapbox-vector</string>
+  </defaultVectorCacheFormats>
+  <defaultOtherCacheFormats>
+    <string>image/png</string>
+    <string>image/jpeg</string>
+    <string>application/json;type=geojson</string>
+    <string>application/json;type=topojson</string>
+    <string>application/json;type=utfgrid</string>
+    <string>application/x-protobuf;type=mapbox-vector</string>
+  </defaultOtherCacheFormats>
+</GeoServerGWCConfig>
