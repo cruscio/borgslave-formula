@@ -1,6 +1,7 @@
 # software version information
 {% set geoserver_version = '2.9.0' %}
 {% set geoserver_md5 = '805e7371bb682395f0be93142868d854' %}
+{% set geoserver_wps_md5 = '895a6e09024cfb579dc52a8bd0ea0d46' %}
 {% set marlin_tag = '0.7.4' %}
 {% set marlin_version = '0.7.4-Unsafe' %}
 {% set marlin_md5 = '016472a7481f147ab21e70791781a2af' %}
@@ -201,8 +202,7 @@ geoserverpkgs:
             - supervisor
             - {% if grains["os_family"] == "Debian" %}openjdk-8-jdk{% elif grains["os_family"] == "Arch" %}jdk8-openjdk{% endif %}
 
-    archive:
-        - extracted
+    archive.extracted:
         - name: /opt/
         - source: http://ufpr.dl.sourceforge.net/project/geoserver/GeoServer/{{ geoserver_version }}/geoserver-{{ geoserver_version }}-bin.zip
         - if_missing: /opt/geoserver-{{ geoserver_version }}/
@@ -210,6 +210,7 @@ geoserverpkgs:
         - archive_format: zip
         - watch_in:
             - supervisord: geoserver
+
 
 
 /opt/geoserver:
@@ -234,8 +235,20 @@ geoserverpkgs:
         - require:
             - file: /opt/geoserver
 
-# install community plugins (vectortiles, geopkg)
-# snapshot taken from http://ares.boundlessgeo.com/geoserver/master/community-latest/
+# install WPS extension, required by geopkg
+geoserver_wps:
+    archive.extracted:
+        - name: /opt/geoserver/webapps/geoserver/WEB-INF/lib/
+        - source: http://ufpr.dl.sourceforge.net/project/geoserver/GeoServer/{{ geoserver_version }}/extensions/geoserver-{{ geoserver_version }}-wps-plugin.zip
+        - source_hash: md5={{ geoserver_wps_md5 }}
+        - if_missing: /opt/geoserver/webapps/geoserver/WEB-INF/lib/gs-wps-core-{{ geoserver_version }}.jar
+        - archive_format: zip
+        - require:
+            - file: /opt/geoserver
+
+
+# install community plugins (vectortiles)
+# snapshot taken from http://ares.opengeo.org/geoserver/2.9.x/community-latest/
 geoserver_community_libs:
     file.recurse:
         - name: /opt/geoserver/webapps/geoserver/WEB-INF/lib/
