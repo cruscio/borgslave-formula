@@ -28,6 +28,13 @@ borgpkgs:
             - gdal-bin
             - python-dev
             - python3-dev
+            - build-essential
+            - supervisor
+
+supervisor:
+    service.running:
+        - enable: True
+        
 
 ##############################################################################################################
 # Install ssh keys for syncing the state repo and copying files from master
@@ -87,8 +94,7 @@ nginx_pkg:
         - source: salt://borgslave-formula/files/nginx
 
 nginx:
-    service:
-        - running
+    service.running:
         - watch:
             - file: /etc/nginx
         - require:
@@ -247,7 +253,7 @@ geoserver_wps:
             - file: /opt/geoserver
 
 
-# install community plugins (vectortiles)
+# install community plugins (vectortiles, geopkg)
 # snapshot taken from http://ares.opengeo.org/geoserver/2.9.x/community-latest/
 geoserver_community_libs:
     file.recurse:
@@ -271,9 +277,6 @@ data_defaults:
         - name: /opt/geoserver_data
         - source: salt://borgslave-formula/files/data_defaults
         - include_empty: true
-        - template: jinja
-        - context:
-            slave_type: {{ slave_type }}
         - unless: "test -d /opt/geoserver_data" 
 
 data_overrides:
@@ -334,11 +337,11 @@ geoserver.conf:
 # Setup borg state repository
 ##############################################################################################################
 # if a new version of GeoServer has been extracted, clobber the sync state cache!
-'rm -rf /opt/dpaw-borg-state':
-    cmd.run:
-        - onchanges:
-            - archive: geoserverpkgs
-            - pkg: postgresql_pkg
+#'rm -rf /opt/dpaw-borg-state':
+#    cmd.run:
+#        - onchanges:
+#            - archive: geoserverpkgs
+#            - pkg: postgresql_pkg
 
 # init dpaw-borg-state repository
 /opt/dpaw-borg-state:
